@@ -194,6 +194,16 @@ Add these lines to your Info.plist file
   <string>whatsapp</string>
   <string>twitter</string>
   </array>
+  
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>$(PRODUCT_NAME) needs permission to access photos and videos on your device</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>$(PRODUCT_NAME) does not require access to the microphone.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>$(PRODUCT_NAME) requires access to the camera.</string>
+  <key>NSAppleMusicUsageDescription</key>
+  <string>$(PRODUCT_NAME) requires access to play music</string>
+  
   <key>FacebookAppID</key>
   <string>[your_facebook_app_id]</string>
   <key>FacebookClientToken</key>
