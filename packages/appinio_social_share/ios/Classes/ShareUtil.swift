@@ -404,18 +404,53 @@ public class ShareUtil{
     }
     
     public func shareToSms(args : [String: Any?],result: @escaping FlutterResult){
-        let message = args[self.argMessage] as? String
-        if #available(iOS 10, *){
-            let urlString = "sms:?&body=\(message!)"
-            if(!canOpenUrl(appName: "sms")){
-                result(ERROR_APP_NOT_AVAILABLE)
-                return
-            }
-            let tgUrl = URL.init(string: urlString.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!)
-            UIApplication.shared.open(tgUrl!, options: [:], completionHandler: nil)
+        guard let topVC = UIApplication.topViewController() else {
+            result(ERROR)
+            return
         }
-        result(SUCCESS)
+
+        if MFMessageComposeViewController.canSendText() {
+            let message = args[self.argMessage] as? String
+            let imagePaths = args[self.argImagePaths] as? [String]
+
+            let controller = MFMessageComposeViewController()
+            controller.body = message
+
+            if let paths = imagePaths {
+                for path in paths {
+                    if let image = UIImage(contentsOfFile: path) {
+                        if let imageData = image.pngData() {
+                            controller.addAttachmentData(imageData, typeIdentifier: "public.png", filename: "image.png")
+                        }
+                    }
+                }
+            }
+
+            let delegate = MessageDelegate(result: result)
+            objc_setAssociatedObject(controller, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            controller.messageComposeDelegate = delegate
+
+            topVC.present(controller, animated: true, completion: nil)
+        } else {
+            let message = args[self.argMessage] as? String
+            if #available(iOS 10, *){
+                let urlString = "sms:?&body=\(message ?? "")"
+                if(!canOpenUrl(appName: "sms")){
+                    result(ERROR_APP_NOT_AVAILABLE)
+                    return
+                }
+                if let tgUrl = URL.init(string: urlString.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!) {
+                     UIApplication.shared.open(tgUrl, options: [:], completionHandler: nil)
+                     result(SUCCESS)
+                } else {
+                    result(ERROR)
+                }
+            } else {
+                 result(ERROR_FEATURE_NOT_AVAILABLE_FOR_THIS_VERSON)
+            }
+        }
     }
+
     
     public func shareToFacebookStory(args : [String: Any?],result: @escaping FlutterResult) {
         let appId = args[self.argAppId] as? String
@@ -641,5 +676,29 @@ class TransparentViewController: UIViewController {
     override func viewDidLoad() {
         view.backgroundColor = UIColor.clear
         view.isOpaque = false
+    }
+}
+
+class MessageDelegate: NSObject, MFMessageComposeViewControllerDelegate {
+    let result: FlutterResult
+
+    init(result: @escaping FlutterResult) {
+        self.result = result
+    }
+
+    public func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+        controller.dismiss(animated: true) {
+            objc_setAssociatedObject(controller, "delegate", nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        switch result {
+        case .sent:
+            self.result("SUCCESS")
+        case .cancelled:
+            self.result("CANCELLED")
+        case .failed:
+            self.result("FAILED")
+        @unknown default:
+            self.result("UNKNOWN")
+        }
     }
 }
